@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Task Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow-md p-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold">Task Manager</h1>
+        <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
+    </nav>
+
+    <div class="container mx-auto p-8 max-w-2xl">
+        <div class="bg-white p-6 rounded shadow-md mb-8">
+            <h2 class="text-lg font-semibold mb-4">Add New Task</h2>
+            <form id="taskForm" class="flex flex-col gap-4">
+                <input type="text" id="taskTitle" placeholder="Task Title" class="p-2 border rounded" required>
+                <textarea id="taskDesc" placeholder="Description (optional)" class="p-2 border rounded"></textarea>
+                <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Add Task</button>
+            </form>
+        </div>
+
+        <div id="taskList" class="space-y-4">
+            <!-- Tasks will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        async function fetchTasks() {
+            const response = await fetch('/api/tasks');
+            const tasks = await response.json();
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+
+            tasks.forEach(task => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = `bg-white p-4 rounded shadow flex justify-between items-center ${task.completed ? 'opacity-50' : ''}`;
+                taskDiv.innerHTML = `
+                    <div>
+                        <h3 class="font-bold ${task.completed ? 'line-through' : ''}">${task.title}</h3>
+                        <p class="text-sm text-gray-600">${task.description || ''}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="toggleTask(${task.id}, ${!task.completed})" class="text-green-500 hover:underline">
+                            ${task.completed ? 'Undo' : 'Complete'}
+                        </button>
+                        <button onclick="deleteTask(${task.id})" class="text-red-500 hover:underline">Delete</button>
+                    </div>
+                `;
+                taskList.appendChild(taskDiv);
+            });
+        }
+
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDesc').value;
+
+            const response = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, description })
+            });
+
+            if (response.ok) {
+                document.getElementById('taskForm').reset();
+                fetchTasks();
+            }
+        });
+
+        async function toggleTask(id, completed) {
+            await fetch(`/api/tasks/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed })
+            });
+            fetchTasks();
+        }
+
+        async function deleteTask(id) {
+            if (confirm('Are you sure?')) {
+                await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+                fetchTasks();
+            }
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await fetch('/api/logout');
+            window.location.href = '/login';
+        });
+
+        fetchTasks();
+    </script>
+</body>
+</html>
